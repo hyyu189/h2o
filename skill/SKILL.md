@@ -35,10 +35,23 @@ set `ROUNDTABLE_PROJECT_DIR` or `RT_FALLBACK_PROJECT` to point at a fallback pro
 
 ## Sending
 
-`rt-say <agent> <kind> "body"`. `kind` is a free triage label (fyi, question,
-answer, proposal, review, correction, directive, urgent) with no effect on delivery
-— pick the closest and move on. For anything long, write `handoff/<topic>.md`,
-commit, and rt-say a one-line pointer instead of pasting walls of text.
+Standard send sequence: **refresh → resolve → send**.
+
+```bash
+rt-refresh                    # 1. rebuild topology from live cmux
+rt-resolve codex              # 2. verify target is mapped and where
+rt-say codex question "..."   # 3. send
+```
+
+`rt-say` reads the existing topology map — it does NOT refresh internally
+(refreshing inside rt-say can shuffle the map between your resolve and the
+send, causing the message to go to the wrong surface). If you haven't
+refreshed recently or agents restarted, refresh first.
+
+`kind` is a free triage label (fyi, question, answer, proposal, review,
+correction, directive, urgent) with no effect on delivery — pick the closest
+and move on. For anything long, write `handoff/<topic>.md`, commit, and
+rt-say a one-line pointer instead of pasting walls of text.
 
 ## Receiving
 
@@ -85,9 +98,12 @@ two things the wrapper normally handles for you:
 
 ## When messages vanish
 
-`rt-say` says `sent` but the target never reacts → the topology map is stale (a
-surface moved on restart). `rt-refresh`, confirm with `rt-resolve` / `cmux
-read-screen`, resend. Most common failure — reach for it first.
+`rt-say` says `sent` but the target never reacts → the topology map was stale
+when the send happened (a surface moved on restart, or rt-say used a cached
+map from before the move). Recovery: `rt-refresh`, confirm with `rt-resolve`
+or `cmux read-screen --surface <id>`, then resend. Most common failure — reach
+for it first. Prevention: always `rt-refresh` before `rt-say` if you're unsure
+the map is current.
 
 ## More
 

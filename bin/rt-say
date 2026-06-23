@@ -59,12 +59,16 @@ def release_lock(path):
 
 
 def read_runtime(refresh=False):
+    """Read runtime.json. Only refresh if explicitly requested or file is missing.
+
+    Do NOT auto-refresh here — refreshing can shuffle the topology map between
+    the caller's manual rt-refresh + rt-resolve and the actual send, causing
+    the message to go to the wrong surface. The caller is responsible for
+    ensuring the map is current (rt-refresh before rt-say).
+    """
     if refresh or not RUNTIME.exists() or RUNTIME.stat().st_size == 0:
         run(str(TOOL_DIR / "rt-refresh"), stdout=subprocess.DEVNULL)
     runtime = json.loads(RUNTIME.read_text())
-    if runtime.get("project") != str(ROOT):
-        run(str(TOOL_DIR / "rt-refresh"), stdout=subprocess.DEVNULL)
-        runtime = json.loads(RUNTIME.read_text())
     if runtime.get("project") != str(ROOT):
         raise SystemExit(f"rt-say: runtime project mismatch: {runtime.get('project')} != {ROOT}")
     return runtime
@@ -92,11 +96,9 @@ def infer_sender(runtime):
     for name, agent in (runtime.get("agents") or {}).items():
         if agent.get("surface_ref") == caller_surface:
             return name
-    run(str(TOOL_DIR / "rt-refresh"), stdout=subprocess.DEVNULL)
-    runtime = read_runtime()
-    for name, agent in (runtime.get("agents") or {}).items():
-        if agent.get("surface_ref") == caller_surface:
-            return name
+    # No match in current runtime — caller may be on a fresh surface.
+    # Do NOT auto-refresh (same reasoning as read_runtime). Just return None
+    # and let the caller set RT_FROM or run rt-refresh manually.
     return os.environ.get("RT_FROM", "")
 
 
@@ -309,14 +311,22 @@ def main():
     LOCK_DIR.mkdir(exist_ok=True)
     MSG_DIR.mkdir(exist_ok=True)
 
-    runtime = read_runtime(refresh=True)
+    runtime = read_runtime()
     sender = infer_sender(runtime)
     if not sender:
         raise SystemExit("rt-say: could not infer sender from current cmux surface; set RT_FROM")
     route = parse_resolve(target)
-    runtime = read_runtime()
     guard_route_in_runtime(runtime, route)
     target_agent = route.get("agent", target)
+    # Verify the resolved surface actually belongs to the target agent
+    route_surface = route.get("surface")
+    agents = runtime.get("agents") or {}
+    for name, agent_data in agents.items():
+        if agent_data.get("surface_ref") == route_surface and name != target_agent:
+            raise SystemExit(
+                f"rt-say: route mismatch — target '{target}' resolved to surface {route_surface} "
+                f"but that surface belongs to agent '{name}'. Run rt-refresh then rt-resolve {target} to fix."
+            )
     if sender == target_agent and os.environ.get("RT_ALLOW_SELF_SEND", "0") != "1":
         raise SystemExit(f"rt-say: refusing self-send from {sender} to {target}")
 
