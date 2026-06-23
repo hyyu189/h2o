@@ -1,0 +1,35 @@
+# ${project_name} · 共享 Orientation
+
+本文是三个 agent 的**共享事实源**：项目目标、约定、协议都写这里，只写一份。
+（Codex 原生入口；Claude 经 CLAUDE.md 首行 `@AGENTS.md` import 加载；Hermes 经 HERMES.md 指引加载。）
+
+工作目录：`${project_dir}`
+
+必读顺序：本文 → `README.md`（共享上下文/进度日志）→ `PROTOCOL.md` → `decision.md` / `BRIEF.md` → `.roundtable/agents.yaml`
+
+## 角色表
+
+- Claude — 架构、多步实现、计划
+- Codex — 快速实现、测试、集成
+- Hermes — 判断、评审、决策备忘
+
+> per-agent 内容在本文件的上限就是这张表；更多 agent 专属指令写各自 delta 文件（CLAUDE.md / HERMES.md），不要写进这里。
+
+## 通信
+
+全局 `rt-*` 工具：
+
+```bash
+rt-say <agent> <kind> "..."       # kinds: question/answer/proposal/directive/review/fyi/urgent
+rt-ack <msg_id>[,<id>...] [body]
+rt-resolve <agent>                # 需要当前运行时路径时
+```
+
+长内容（>~500 字）写 `handoff/<topic>.md` + commit，再发短指针。
+不手写 `cmux send`、`send-key`、workspace/surface ID。
+
+## 纪律
+
+- 完成一段工作即更新 `state.md`。
+- 项目 skill 的唯一源在 `./skills/`：Claude 经 `.claude/skills` 软链自动读取；Codex/Hermes 需要项目工作流时也从 `./skills/` 加载。不要把项目 skill 装进各自的全局 skill 目录。
+- 项目自身的 build/test/约定写在下方（roundtable-init 后按项目补充）。

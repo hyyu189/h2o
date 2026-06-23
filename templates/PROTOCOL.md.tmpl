@@ -1,0 +1,60 @@
+# ${project_name} · 通信协议
+
+工作目录：`${project_dir}`<br>
+仲裁者：Project Owner
+
+本文只保留公共通信纪律。运行时拓扑、surface 选择、submit/queue 规则不写进自然语言协议；它们由 `.roundtable/agents.yaml` 和全局 `rt-*` 工具统一处理。
+
+## 核心原则
+
+1. 短消息使用 `rt-say <agent> <kind> <body>`。
+2. ack 使用 `rt-ack <msg_id>[,<msg_id>...] [body]`。
+3. 长内容写入 `handoff/<topic>.md`，必要时 commit，再用 `rt-say` 发短通知。
+4. 不手写 `cmux send`、`cmux send-key`、workspace ID 或 surface ID。
+5. 所有 live topology 都是运行时缓存；需要当前路径时用 `rt-resolve <agent>`。
+
+## 常用命令
+
+```bash
+rt-refresh
+rt-resolve claude
+rt-resolve codex
+rt-resolve hermes
+rt-say claude question "..."
+rt-ack 20260525T000000Z-claude-to-codex-12345 "received"
+```
+
+`rt-say` 会自动加来源 tag、选择提交方式、写消息 ledger，并避免普通 self-send。
+
+## 状态文件
+
+- `.roundtable/agents.yaml`：稳定 agent 策略，tracked。
+- `.roundtable/runtime.json`：运行时拓扑缓存，generated。
+- `.roundtable/messages/`：消息 ledger，generated。
+- `.roundtable/locks/`：运行时 lock，generated。
+- `state.md`：当前项目状态摘要。
+- `decision.md`：Project Owner 拍板记录。
+
+## 协作纪律
+
+1. Project owner arbitrates: AI proposes, human decides.
+2. 不发 ack-of-ack。
+3. 完成一段工作即更新 `state.md`。
+4. 看到自己的 tag 进入自己的输入时立即停止；`rt-say` 默认也会拒绝 self-send。
+5. 复杂内容写文件，不塞进 terminal input。
+6. 改其他 harness 的配置、hook、skill 前必须经 Project Owner 授权。
+
+## Git 文档协作流
+
+适用：方案设计、协议、schema、handoff 长文档等文档型协作。
+
+```text
+main
+  └─ review/<topic>
+       发起者提交初稿
+       其他 agent inline 修改 + commit
+       Integrator cleanup commit
+       merge back to main
+```
+
+规则：一个议题一个共享 review 分支；直接改最终稿；提交要小而清楚；最后由 Integrator 清理重复和术语冲突。
