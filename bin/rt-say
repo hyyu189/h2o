@@ -316,13 +316,19 @@ def main():
     if not sender:
         raise SystemExit("rt-say: could not infer sender from current cmux surface; set RT_FROM")
     route = parse_resolve(target)
+    # Re-read runtime AFTER resolve — rt-resolve may have refreshed the map.
+    # All guards must run against this single post-resolve snapshot.
+    runtime = read_runtime()
     guard_route_in_runtime(runtime, route)
     target_agent = route.get("agent", target)
-    # Verify the resolved surface actually belongs to the target agent
+    # Verify the resolved surface actually belongs to the target agent.
+    # Multi-instance: rt-resolve reports agent=<base>, but runtime keys by
+    # instance id (e.g. codex#1, codex-build). Accept both base and instance.
     route_surface = route.get("surface")
+    resolved_names = {route.get("agent"), route.get("instance"), target}
     agents = runtime.get("agents") or {}
     for name, agent_data in agents.items():
-        if agent_data.get("surface_ref") == route_surface and name != target_agent:
+        if agent_data.get("surface_ref") == route_surface and name not in resolved_names:
             raise SystemExit(
                 f"rt-say: route mismatch — target '{target}' resolved to surface {route_surface} "
                 f"but that surface belongs to agent '{name}'. Run rt-refresh then rt-resolve {target} to fix."
