@@ -468,17 +468,34 @@ def main():
     try:
         existing_agents = existing.get("agents") or {}
         live_surfaces = {surface["surface_ref"] for surface in surfaces}
+        # Build a surface→name map from the fresh assignment to detect
+        # stale mappings in the old runtime (e.g. surface:1 was "claude"
+        # in old runtime but is now correctly "hermes" — the old "claude"
+        # entry must NOT be carried forward as stale).
+        fresh_surface_to_name = {}
+        for name, surface in agents.items():
+            sr = surface.get("surface_ref")
+            if sr:
+                fresh_surface_to_name[sr] = name
+
         for name, surface in list(agents.items()):
             agents[name] = merge_status(name, surface, existing_agents)
         for name, old in existing_agents.items():
             if name in agents:
                 continue
-            if old.get("surface_ref") and old.get("surface_ref") not in live_surfaces:
+            old_surface = old.get("surface_ref")
+            if old_surface and old_surface not in live_surfaces:
                 stale = dict(old)
                 stale["status"] = "blocked_or_stale"
                 stale["status_source"] = "rt-refresh"
                 stale["status_updated_at"] = utc_now()
                 agents[name] = stale
+            elif old_surface and old_surface in live_surfaces:
+                # Surface is live but assigned to a different agent now.
+                # The old entry is a stale mapping (surface reused by
+                # another agent after restart). Drop it — don't carry
+                # forward a ghost that would confuse rt-say/rt-resolve.
+                pass
 
         runtime = {
             "schema": "roundtable.runtime.v1",
