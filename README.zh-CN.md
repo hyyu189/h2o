@@ -1,8 +1,10 @@
-# roundtable-cmux
+# h2o
 
 [English](./README.md) | **中文**
 
-一个为共享 [cmux](https://cmux.com) 工作区的多个 AI 编程 agent 提供协调通信的层。多个 agent（Claude Code、Codex、Hermes —— 或任意组合）通过 `rt-*` CLI 工具互发消息，自动追踪拓扑、管理提交按键、检测忙碌状态。
+一个为共享 [cmux](https://cmux.com) 工作区的多个 AI 编程 agent 提供协调通信的层。
+
+**H2O = Harness Over Harness** —— 一个 harness 编排另一个，跨 cmux surface。多个 agent（Claude Code、Codex、Hermes —— 或任意组合）通过 `rt-*` CLI 工具互发消息，自动追踪拓扑、管理提交按键、检测忙碌状态。
 
 ## 前置要求
 
@@ -20,14 +22,14 @@
 ### 一行命令
 
 ```bash
-git clone https://github.com/hyyu189/roundtable-cmux.git && cd roundtable-cmux && chmod +x install.sh && ./install.sh
+git clone https://github.com/hyyu189/h2o.git && cd h2o && chmod +x install.sh && ./install.sh
 ```
 
 ### 手动安装
 
 ```bash
-git clone https://github.com/hyyu189/roundtable-cmux.git
-cd roundtable-cmux
+git clone https://github.com/hyyu189/h2o.git
+cd h2o
 chmod +x install.sh
 ./install.sh
 ```
@@ -41,12 +43,12 @@ chmod +x install.sh
 
 ### Agent 友好安装（给 AI agent 看的）
 
-如果你是一个 AI agent，被指示安装 roundtable-cmux：
+如果你是一个 AI agent，被指示安装 h2o：
 
 ```bash
 # 1. 克隆并安装
-git clone https://github.com/hyyu189/roundtable-cmux.git /tmp/roundtable-cmux
-cd /tmp/roundtable-cmux && chmod +x install.sh && ./install.sh
+git clone https://github.com/hyyu189/h2o.git /tmp/h2o
+cd /tmp/h2o && chmod +x install.sh && ./install.sh
 
 # 2. 刷新 shell 配置以获取 rt-* 命令
 source ~/.zshrc  # 或 ~/.bashrc
@@ -245,7 +247,7 @@ agents:
 ## 卸载
 
 ```bash
-cd roundtable-cmux
+cd h2o
 ./uninstall.sh
 ```
 

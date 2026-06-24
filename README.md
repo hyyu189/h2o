@@ -1,8 +1,10 @@
-# roundtable-cmux
+# h2o
 
 **English** | [中文](./README.zh-CN.md)
 
-A coordination layer for collocated AI coding agents that share a [cmux](https://cmux.com) workspace. Multiple agents (Claude Code, Codex, Hermes — or any combination) message each other through `rt-*` CLI tools, with automatic topology tracking, submit-key management, and busy-state detection.
+A coordination layer for collocated AI coding agents that share a [cmux](https://cmux.com) workspace.
+
+**H2O = Harness Over Harness** — one harness orchestrates another, across cmux surfaces. Multiple agents (Claude Code, Codex, Hermes — or any combination) message each other through `rt-*` CLI tools, with automatic topology tracking, submit-key management, and busy-state detection.
 
 ## Requirements
 
@@ -20,14 +22,14 @@ A coordination layer for collocated AI coding agents that share a [cmux](https:/
 ### One-liner
 
 ```bash
-git clone https://github.com/hyyu189/roundtable-cmux.git && cd roundtable-cmux && chmod +x install.sh && ./install.sh
+git clone https://github.com/hyyu189/h2o.git && cd h2o && chmod +x install.sh && ./install.sh
 ```
 
 ### Manual
 
 ```bash
-git clone https://github.com/hyyu189/roundtable-cmux.git
-cd roundtable-cmux
+git clone https://github.com/hyyu189/h2o.git
+cd h2o
 chmod +x install.sh
 ./install.sh
 ```
@@ -41,12 +43,12 @@ The installer will:
 
 ### Agent-friendly install (for AI agents reading this)
 
-If you are an AI agent directed to install roundtable-cmux:
+If you are an AI agent directed to install h2o:
 
 ```bash
 # 1. Clone and install
-git clone https://github.com/hyyu189/roundtable-cmux.git /tmp/roundtable-cmux
-cd /tmp/roundtable-cmux && chmod +x install.sh && ./install.sh
+git clone https://github.com/hyyu189/h2o.git /tmp/h2o
+cd /tmp/h2o && chmod +x install.sh && ./install.sh
 
 # 2. Source your shell rc to get rt-* on PATH
 source ~/.zshrc  # or ~/.bashrc
@@ -245,7 +247,7 @@ Kinds are documentary — they help receivers triage. No delivery difference.
 ## Uninstall
 
 ```bash
-cd roundtable-cmux
+cd h2o
 ./uninstall.sh
 ```
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# roundtable-cmux — install script
+# h2o — install script
 #
 # Installs the roundtable coordination layer for cmux users.
 # Detects installed AI coding agent harnesses and wires symlinks.
@@ -22,7 +22,7 @@ warn()  { echo -e "${YELLOW}⚠${RESET} $1"; }
 fail()  { echo -e "${RED}✗${RESET} $1"; exit 1; }
 
 # --- preflight ---
-echo -e "${BOLD}roundtable-cmux installer${RESET}"
+echo -e "${BOLD}h2o installer${RESET}"
 echo ""
 
 # Check cmux
@@ -138,7 +138,7 @@ if grep -qF "$INSTALL_DIR/bin" "$RC_FILE" 2>/dev/null; then
     info "PATH already configured in $RC_FILE"
 else
     echo "" >> "$RC_FILE"
-    echo "# roundtable-cmux tools" >> "$RC_FILE"
+    echo "# h2o tools" >> "$RC_FILE"
     printf '%s\n' "$PATH_LINE" >> "$RC_FILE"
     info "PATH added to $RC_FILE"
     warn "run 'source $RC_FILE' or start a new shell"

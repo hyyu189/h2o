@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# roundtable-cmux — uninstall script
+# h2o — uninstall script
 #
 # Removes only files installed by install.sh, using a manifest.
 # Does NOT remove ~/.roundtable/ wholesale — only tracked subpaths.
@@ -18,7 +18,7 @@ RESET="\033[0m"
 info()  { echo -e "${GREEN}✓${RESET} $1"; }
 warn()  { echo -e "${YELLOW}⚠${RESET} $1"; }
 
-echo -e "${BOLD}roundtable-cmux uninstaller${RESET}"
+echo -e "${BOLD}h2o uninstaller${RESET}"
 echo ""
 
 # Files installed by install.sh (deterministic list)
@@ -101,4 +101,4 @@ echo ""
 echo "Note: existing projects' .roundtable/ dirs are untouched."
 echo "Note: cmux hooks still installed — run 'cmux hooks uninstall' to remove them."
 echo ""
-echo "To remove PATH entry, edit your shell rc file and delete the '# roundtable-cmux tools' block."
+echo "To remove PATH entry, edit your shell rc file and delete the '# h2o tools' block."
