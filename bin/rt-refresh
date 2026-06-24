@@ -353,16 +353,29 @@ def assign_agents(surfaces, meta_by_ref, instances_cfg, detect_cfg, workspace_re
     """Map agent terminal surfaces to runtime keys.
 
     Position comes from cmux's resume_binding (deterministic). Surfaces without a binding
-    yet (fresh, pre-checkpoint agents) fall back to a screen-banner probe. Single instance
-    keys by base name; multiple surfaces of one harness match configured instances by cwd
-    (primary anchor) then title, else stable checkpoint order, with surplus as base#N.
+    yet (fresh, pre-checkpoint agents) fall back to a screen-banner probe. If a surface has
+    a binding but the screen-banner probe disagrees (stale cmux binding after agent swap),
+    the screen probe wins — cmux's resume_binding can be stale when an agent restarts on
+    a surface previously held by another agent.
+
+    Single instance keys by base name; multiple surfaces of one harness match configured
+    instances by cwd (primary anchor) then title, else stable checkpoint order, with
+    surplus as base#N.
     """
     by_agent = {}
     for surface in surfaces:
         meta = meta_by_ref.get(surface["surface_ref"]) or {}
-        name = kind_map.get((meta.get("kind") or "").lower())
+        binding_kind = (meta.get("kind") or "").lower()
+        name = kind_map.get(binding_kind) if binding_kind else None
+        # Always run screen probe as a cross-check — cmux bindings can be stale
+        # when an agent restarts on a surface previously held by another agent.
+        probed_name = probe_screen_agent(surface["surface_ref"], workspace_ref, detect_cfg)
+        if probed_name and probed_name != name:
+            # Screen probe disagrees with cmux binding — trust the screen.
+            # The live terminal content is more authoritative than a cached binding.
+            name = probed_name
         if not name:
-            name = probe_screen_agent(surface["surface_ref"], workspace_ref, detect_cfg)
+            name = probed_name  # probe was our only signal (no binding or unknown kind)
         if not name:
             continue
         enriched = dict(surface)
