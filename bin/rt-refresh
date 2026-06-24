@@ -366,16 +366,34 @@ def assign_agents(surfaces, meta_by_ref, instances_cfg, detect_cfg, workspace_re
     for surface in surfaces:
         meta = meta_by_ref.get(surface["surface_ref"]) or {}
         binding_kind = (meta.get("kind") or "").lower()
-        name = kind_map.get(binding_kind) if binding_kind else None
+        binding_name = kind_map.get(binding_kind) if binding_kind else None
         # Always run screen probe as a cross-check — cmux bindings can be stale
         # when an agent restarts on a surface previously held by another agent.
         probed_name = probe_screen_agent(surface["surface_ref"], workspace_ref, detect_cfg)
-        if probed_name and probed_name != name:
+        
+        name = None
+        if probed_name and binding_name and probed_name == binding_name:
+            # Both agree — high confidence
+            name = probed_name
+        elif probed_name and binding_name and probed_name != binding_name:
             # Screen probe disagrees with cmux binding — trust the screen.
             # The live terminal content is more authoritative than a cached binding.
             name = probed_name
-        if not name:
-            name = probed_name  # probe was our only signal (no binding or unknown kind)
+        elif probed_name and not binding_name:
+            # No binding but probe matched — fresh agent showing its banner
+            name = probed_name
+        elif binding_name and not probed_name:
+            # Binding exists but screen probe returned None — the agent may be
+            # mid-session (banner scrolled off) or starting up (screen blank).
+            # If the binding is for an agent that has a screen signature configured,
+            # we can't verify it — but it's likely correct if the agent has been
+            # running for a while. Accept the binding but with lower confidence.
+            # The risk: a stale binding from a previous agent on this surface.
+            # Mitigated by the stale-entry drop logic in main() that removes
+            # ghost entries when a surface is reassigned.
+            name = binding_name
+        # else: no binding, no probe — skip (plain shell or watcher)
+        
         if not name:
             continue
         enriched = dict(surface)
