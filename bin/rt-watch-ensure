@@ -12,6 +12,8 @@
 
 set -u
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+
 # Discover project root (walk-up from PWD looking for .roundtable/agents.yaml).
 # Honor ROUNDTABLE_PROJECT_DIR override.
 discover_project() {
