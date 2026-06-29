@@ -9,7 +9,10 @@ from pathlib import Path
 from _rtlib import find_project_root
 
 TOOL_DIR = Path(__file__).resolve().parent
-MSG_ID_RE = re.compile(r"^\d{8}T\d{6}Z-([a-z]+)-to-([a-z]+)-.+$")
+# Agent names may be multi-instance ids (claude#1, codex-build), so the from/to
+# fields can contain digits, '#', '_' and '-'. Anchor on the timestamp prefix,
+# the literal '-to-' separator, and a hyphen-free random suffix.
+MSG_ID_RE = re.compile(r"^\d{8}T\d{6}Z-([a-z0-9#_-]+)-to-([a-z0-9#_-]+)-[^-]+$")
 
 
 ROOT = find_project_root("rt-ack")

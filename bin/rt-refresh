@@ -193,6 +193,32 @@ def bound_workspace(tree, identify, existing, args):
 
     existing_binding = existing.get("workspace_binding") or {}
     existing_ref = existing_binding.get("ref")
+
+    # cmux's `surface.list` (rt-refresh's authoritative kind source) ignores its
+    # workspace argument and always returns the CALLER's focused workspace. So the
+    # only workspace rt-refresh can map correctly is the one the caller is actually
+    # in. When the caller is inside a cmux workspace, prefer it: a stored binding
+    # that points elsewhere is stale (agents moved / the old workspace was
+    # repurposed) and would otherwise be mapped against the focused workspace's
+    # bindings, silently producing a garbage agent map. Fall back to the stored
+    # binding / title-rebind / project scoring only when the caller has no workspace
+    # context (e.g. a detached rt-watch or cron refresh). Explicit --bind/--bind-current
+    # above still override this.
+    caller_ref = current_workspace_ref(identify, tree)
+    if caller_ref:
+        caller_window, caller_workspace = workspace_by_ref(tree, caller_ref)
+        if caller_workspace is not None:
+            if existing_ref and existing_ref != caller_ref:
+                print(
+                    f"rt-refresh: project was bound to {existing_ref} "
+                    f"({existing_binding.get('title', '')!r}) but caller is in {caller_ref} "
+                    f"({caller_workspace.get('title', '')!r}); agents appear to have moved — "
+                    f"rebinding to {caller_ref}. Use --bind {existing_ref} to force the old binding.",
+                    file=sys.stderr,
+                )
+            source = "existing" if existing_ref == caller_ref else "caller-rebind"
+            return caller_window, caller_workspace, binding_record(caller_workspace, source)
+
     if existing_ref:
         window, workspace = workspace_by_ref(tree, existing_ref)
         if workspace is not None:
@@ -275,6 +301,11 @@ def surface_meta(workspace_ref):
     which cmux stamps once an agent has checkpointed (done its first turn). Fresh agents
     (pre-first-turn) and non-agent surfaces have kind=None and get resolved later by an
     optional screen-banner probe.
+
+    NOTE: as of cmux 0.64.x, `surface.list` ignores its `workspace` argument (ref, UUID,
+    and index all return the caller's *focused* workspace). So this metadata only lines up
+    with `workspace_ref` when that workspace is the caller's focused one — which is why
+    bound_workspace() prefers the caller's workspace for default refreshes.
     """
     try:
         data = run_json("cmux", "rpc", "surface.list", json.dumps({"workspace": workspace_ref}))
@@ -292,6 +323,7 @@ def surface_meta(workspace_ref):
         out[ref] = {
             "kind": binding.get("kind"),
             "checkpoint_id": binding.get("checkpoint_id"),
+            "updated_at": binding.get("updated_at"),
             "cwd": binding.get("cwd") or surface.get("requested_working_directory"),
             "title": surface.get("title") or "",
         }
@@ -352,11 +384,11 @@ def probe_screen_agent(surface_ref, workspace_ref, detect_cfg):
 def assign_agents(surfaces, meta_by_ref, instances_cfg, detect_cfg, workspace_ref, kind_map):
     """Map agent terminal surfaces to runtime keys.
 
-    Position comes from cmux's resume_binding (deterministic). Surfaces without a binding
-    yet (fresh, pre-checkpoint agents) fall back to a screen-banner probe. If a surface has
-    a binding but the screen-banner probe disagrees (stale cmux binding after agent swap),
-    the screen probe wins — cmux's resume_binding can be stale when an agent restarts on
-    a surface previously held by another agent.
+    Position comes from cmux's resume_binding, which is the authoritative real-time
+    identity (it survives kill+resume and surface drift). Surfaces without a binding yet
+    (fresh, pre-checkpoint agents) fall back to a screen-banner probe. The probe never
+    overrides an existing binding — detect.screen signatures appear too often in ordinary
+    terminal output to be trusted over cmux.
 
     Single instance keys by base name; multiple surfaces of one harness match configured
     instances by cwd (primary anchor) then title, else stable checkpoint order, with
@@ -367,37 +399,27 @@ def assign_agents(surfaces, meta_by_ref, instances_cfg, detect_cfg, workspace_re
         meta = meta_by_ref.get(surface["surface_ref"]) or {}
         binding_kind = (meta.get("kind") or "").lower()
         binding_name = kind_map.get(binding_kind) if binding_kind else None
-        # Always run screen probe as a cross-check — cmux bindings can be stale
-        # when an agent restarts on a surface previously held by another agent.
-        probed_name = probe_screen_agent(surface["surface_ref"], workspace_ref, detect_cfg)
-        
-        name = None
-        if probed_name and binding_name and probed_name == binding_name:
-            # Both agree — high confidence
-            name = probed_name
-        elif probed_name and binding_name and probed_name != binding_name:
-            # Screen probe disagrees with cmux binding — trust the screen.
-            # The live terminal content is more authoritative than a cached binding.
-            name = probed_name
-        elif probed_name and not binding_name:
-            # No binding but probe matched — fresh agent showing its banner
-            name = probed_name
-        elif binding_name and not probed_name:
-            # Binding exists but screen probe returned None — the agent may be
-            # mid-session (banner scrolled off) or starting up (screen blank).
-            # If the binding is for an agent that has a screen signature configured,
-            # we can't verify it — but it's likely correct if the agent has been
-            # running for a while. Accept the binding but with lower confidence.
-            # The risk: a stale binding from a previous agent on this surface.
-            # Mitigated by the stale-entry drop logic in main() that removes
-            # ghost entries when a surface is reassigned.
+
+        # cmux's resume_binding is the authoritative, real-time agent identity — it
+        # survives kill+resume and surface drift. Trust it. The screen-banner probe is
+        # ONLY a fallback for surfaces cmux hasn't bound yet (fresh, pre-checkpoint
+        # agents still showing their welcome banner). We deliberately do NOT let the
+        # probe override an existing binding: detect.screen signatures ("OpenAI Codex",
+        # "Claude Code", "⚕", ...) routinely show up in normal terminal output — agents
+        # reading agents.yaml, reviewing each other, printing this very file — so a
+        # substring match is far too weak to overrule cmux. (This poisoning was a real
+        # bug: a codex surface displaying the text "Claude Code" got mislabeled claude.)
+        # When a binding exists we skip the probe entirely — safer and faster.
+        if binding_name:
             name = binding_name
-        # else: no binding, no probe — skip (plain shell or watcher)
-        
+        else:
+            name = probe_screen_agent(surface["surface_ref"], workspace_ref, detect_cfg)
+
         if not name:
             continue
         enriched = dict(surface)
         enriched["session_checkpoint_id"] = meta.get("checkpoint_id")
+        enriched["binding_updated_at"] = meta.get("updated_at")
         enriched["cwd"] = meta.get("cwd")
         by_agent.setdefault(name, []).append(enriched)
 
@@ -407,7 +429,16 @@ def assign_agents(surfaces, meta_by_ref, instances_cfg, detect_cfg, workspace_re
         if len(surfs) == 1 and len(insts) <= 1:
             agents[insts[0]["id"] if insts else base] = surfs[0]
             continue
-        ordered = sorted(surfs, key=lambda s: (s.get("session_checkpoint_id") or ""))
+        # Newest binding first: the surface whose resume_binding was updated most
+        # recently is the live session. Older same-kind surfaces are stale — the agent
+        # exited and cmux kept the binding after the surface reverted to a plain shell.
+        ordered = sorted(surfs, key=lambda s: (s.get("binding_updated_at") or 0), reverse=True)
+        if len(insts) <= 1:
+            # Single-instance agent (per agents.yaml) with multiple same-kind surfaces:
+            # keep only the freshest, drop the stale duplicates, so the agent resolves
+            # to its live surface instead of a defunct one (and isn't split into base#1).
+            agents[insts[0]["id"]] = ordered[0]
+            continue
         used = set()
         for inst in insts:
             match = inst.get("match") or {}

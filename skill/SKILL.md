@@ -1,12 +1,11 @@
 ---
 name: roundtable
 description: >-
-  Coordination layer for collocated agents (Hermes, Claude, Codex) that share one
-  cmux workspace and message each other through the rt-* CLI tools. Invoke whenever
-  the project has .roundtable/agents.yaml, an inbound [FROM→TO kind id=...] message
-  arrives, or the user mentions another collocated agent, rt-say, rt-ack, handoff,
-  or coordinating with another agent — even if the skill isn't named. Missing an
-  inbound message silently breaks the exchange, so trigger eagerly.
+  Use when active roundtable coordination is required: an inbound [FROM→TO kind
+  id=...] message arrives, the user mentions Hermes/Claude/Codex as peer agents,
+  rt-say, rt-ack, rt-refresh, rt-resolve, handoff delivery, multi-instance agent
+  routing, or cmux surface-routing bugs. Do not use merely because a repo
+  contains .roundtable/agents.yaml.
 version: 5.0.0
 author: Roundtable contributors
 license: MIT
@@ -105,7 +104,17 @@ or `cmux read-screen --surface <id>`, then resend. Most common failure — reach
 for it first. Prevention: always `rt-refresh` before `rt-say` if you're unsure
 the map is current.
 
+## Collaboration discipline
+
+- **The human lead arbitrates.** Agents propose; the human decides. Surface
+  decisions; don't unilaterally enact irreversible ones.
+- **No unauthorized intrusion.** Don't modify another harness's config, plugins,
+  hooks, or orientation files without the human lead's authorization.
+- **No ack-of-ack.** Once you receive a `sync-ack`, stop — don't acknowledge an
+  acknowledgement.
+
 ## More
 
 Optional multi-agent playbooks (cross-agent freeze/merge signoff, `/goal` build
-dispatch) live in `~/.roundtable/docs/workflows/` — not needed for ordinary messaging.
+dispatch, git-based doc collaboration) live in `~/.roundtable/docs/workflows/` —
+not needed for ordinary messaging.
